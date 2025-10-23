@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Print QR - {{ book.title }}</title>
+    <style>
+        body { text-align: center; font-family: sans-serif; background: #f9f9f9;}
+        .qr { margin: 2em auto; }
+        h2 { margin: 0.5em 0 0 0; }
+        .book-meta { color: #666; font-size: 1.1em; margin-bottom: 2em;}
+        @media print {
+            button, .extra { display: none !important; }
+            body { background: #fff; }
+        }
+    </style>
+</head>
+<body>
+    <div class="extra" style="margin:1em 0">
+        <button onclick="window.print()">🖨️ Print</button>
+        <a href="/books/" style="margin-left:1em">← Back</a>
+    </div>
+    <h2>{{ book.title }}</h2>
+    <div class="book-meta">by {{ book.author }}</div>
+    {% if book.qr_code %}
+        <div class="qr">
+            <img src="{{ book.qr_code.url }}" style="width:320px;height:320px;" />
+        </div>
+    {% else %}
+        <div class="qr no-qr" style="width:320px;height:320px;display:flex;align-items:center;justify-content:center;background:#eee;">No QR</div>
+    {% endif %}
+    <div class="extra" style="margin-top:2em; color: #888;">
+        Scan or print this QR code for quick self-loan.
+    </div>
+</body>
+</html>

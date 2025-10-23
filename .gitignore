@@ -1,0 +1,56 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+*.sqlite3
+
+# Django migrations
+**/migrations/*.pyc
+**/migrations/*.pyo
+**/migrations/__pycache__/
+**/migrations/*.py~
+**/migrations/*.orig
+
+# VSCode and editor junk
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Environment
+.env
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# Mac and system files
+.DS_Store
+Thumbs.db
+
+# Test/report files
+htmlcov/
+coverage.*
+*.cover
+*.log
+*.pot
+
+# Node (if you ever use npm)
+node_modules/
+
+# Python egg files
+*.egg-info/
+dist/
+build/
+*.egg
