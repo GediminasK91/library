@@ -83,15 +83,7 @@
                 <input type="text" name="author" class="form-control" placeholder="Author" required />
             </div>
             <div class="col-12 col-md-3">
-                <select name="owner_id" class="form-select">
-                    <option value="">Owner (optional)</option>
-                    {% for u in users %}
-                        <option value="{{ u.id }}">
-                            {% if u.get_full_name %}{{ u.get_full_name }}{% else %}{{ u.username }}{% endif %}
-                            {% if u.email %} ({{ u.email }}){% endif %}
-                        </option>
-                    {% endfor %}
-                </select>
+                <input type="text" name="owner" class="form-control" placeholder="Owner (optional)" />
             </div>
             <div class="col-12 col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Add Book</button>
@@ -124,9 +116,7 @@
 
                 {% if book.owner %}
                     <div class="text-center owner-label mb-2">
-                        <strong>Owner:</strong>
-                        {{ book.owner.get_full_name|default:book.owner.username }}
-                        {% if book.owner.email %} ({{ book.owner.email }}){% endif %}
+                        <strong>Owner:</strong> {{ book.owner }}
                     </div>
                 {% else %}
                     <div class="text-center owner-label mb-2"><em>No owner assigned</em></div>

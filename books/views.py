@@ -14,10 +14,11 @@ from .models import Book, BookLoan
 
 
 # ---------------------------------------------------------------------
-# MSAL (Microsoft Entra ID) Inline Configuration
+# MSAL (Microsoft Entra ID / Azure AD) Inline Configuration
 # ---------------------------------------------------------------------
 
-AUTHORITY = f"https://login.microsoftonline.com/{settings.MSAL_TENANT_ID}"
+TENANT = (getattr(settings, "MSAL_TENANT_ID", "") or "common").strip()
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT}"
 SCOPES = ["User.Read"]  # Do NOT include reserved scopes like openid/profile/offline_access
 
 
@@ -49,6 +50,7 @@ def get_sign_in_flow():
 # ---------------------------------------------------------------------
 
 def print_qr(request, book_id):
+    """Display printable QR page for a given book."""
     book = get_object_or_404(Book, id=book_id)
     return render(request, "books/print_qr.html", {"book": book})
 
@@ -107,32 +109,32 @@ def auth_callback(request):
     error_desc = result.get("error_description") or result.get("error") or "Authentication failed"
     return HttpResponse(error_desc, status=401)
 
+
 @login_required
 def book_list(request):
-    """Main page: list books, show loan info, allow adding new books (with optional owner)."""
+    """
+    Main page: list books, show loan info, allow adding new books.
+    Now supports text-based owner field (name + surname).
+    """
     if request.method == "POST":
         title = request.POST.get("title")
         author = request.POST.get("author")
-        owner_id = request.POST.get("owner_id")  # optional
-
-        owner = None
-        if owner_id:
-            owner = User.objects.filter(id=owner_id).first()
+        owner_name = request.POST.get("owner")  # now text
 
         if title and author:
-            Book.objects.create(title=title, author=author, owner=owner)
+            Book.objects.create(title=title, author=author, owner=owner_name)
         return redirect("book_list")
 
     q = request.GET.get("q", "").strip()
     books = Book.objects.all()
     if q:
-        books = books.filter(Q(title__icontains=q) | Q(author__icontains=q))
+        books = books.filter(
+            Q(title__icontains=q) | Q(author__icontains=q) | Q(owner__icontains=q)
+        )
 
     loans = BookLoan.objects.filter(returned_at__isnull=True)
     loaned_books = {loan.book_id for loan in loans}
     loan_info = {loan.book_id: loan for loan in loans}
-
-    users = User.objects.filter(is_active=True).order_by("first_name", "last_name", "username")
 
     return render(
         request,
@@ -142,12 +144,12 @@ def book_list(request):
             "loaned_books": loaned_books,
             "loan_info": loan_info,
             "q": q,
-            "users": users,
         },
     )
 
 
 def take_book_page(request, book_id):
+    """Show details for taking a specific book."""
     book = get_object_or_404(Book, id=book_id)
     active_loan = BookLoan.objects.filter(book=book, returned_at__isnull=True).first()
     return render(request, "books/take_book.html", {"book": book, "active_loan": active_loan})

@@ -1,28 +1,23 @@
-# books/models.py
 from django.db import models
 from django.conf import settings
 from django.urls import reverse
 from django.core.files.base import ContentFile
-from django.utils import timezone
 from io import BytesIO
 import qrcode
-
-from django.contrib.auth import get_user_model
-User = get_user_model()
 
 
 class Book(models.Model):
     title = models.CharField(max_length=200)
     author = models.CharField(max_length=200)
-    # NEW: who this book belongs to (employee or service account)
-    owner = models.ForeignKey(
-        User,
-        null=True,
+
+    # Owner as plain text (type name + surname)
+    owner = models.CharField(
+        max_length=200,
         blank=True,
-        on_delete=models.SET_NULL,
-        related_name="owned_books",
-        help_text="Who owns this book (e.g., the employee who lent it to the company).",
+        null=True,
+        help_text="Name of the person/department who owns this book",
     )
+
     qr_code = models.ImageField(upload_to="qr_codes", blank=True)
 
     def save(self, *args, **kwargs):
@@ -32,11 +27,11 @@ class Book(models.Model):
             base_url = getattr(settings, "SITE_BASE_URL", "http://localhost:8000")
             qr_url = f"{base_url}{reverse('take_book_page', args=[self.id])}"
             qr = qrcode.make(qr_url)
-            buffer = BytesIO()
-            qr.save(buffer)
+            buf = BytesIO()
+            qr.save(buf)
             self.qr_code.save(
                 f"qr_code_{self.id}.png",
-                ContentFile(buffer.getvalue()),
+                ContentFile(buf.getvalue()),
                 save=False,
             )
             super().save(update_fields=["qr_code"])

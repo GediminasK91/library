@@ -33,6 +33,11 @@ CSRF_TRUSTED_ORIGINS = [
     "https://lalibrary-hjchh0d3ckdte9hz.northeurope-01.azurewebsites.net",
 ]
 
+# Tell Django to trust Azure's proxy for https scheme
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 # --------------------------------------------------------------------------------------
 # Apps
 # --------------------------------------------------------------------------------------
@@ -53,6 +58,8 @@ INSTALLED_APPS = [
 # --------------------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Whitenoise must be directly after SecurityMiddleware
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -129,25 +136,35 @@ USE_I18N = True
 USE_TZ = True
 
 # --------------------------------------------------------------------------------------
-# Static & Media
+# Static & Media (Whitenoise + Django 5 STORAGES)
 # --------------------------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# Add extra static dirs here if you have any project-level /static folder
+STATICFILES_DIRS = []
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# Use Whitenoise's compressed+hashed storage for static files
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --------------------------------------------------------------------------------------
 # MSAL / Entra ID
 # --------------------------------------------------------------------------------------
-# You provided this client ID:
 MSAL_CLIENT_ID = env("MSAL_CLIENT_ID", default="fb026e5b-995c-4b80-ba78-d0d02cba7366")
-MSAL_CLIENT_SECRET = env("MSAL_CLIENT_SECRET", default="")  # keep in Azure App Settings
-MSAL_TENANT_ID = env("MSAL_TENANT_ID", default="")         # your tenant GUID
+MSAL_CLIENT_SECRET = env("MSAL_CLIENT_SECRET", default="")   # keep in Azure App Settings
+MSAL_TENANT_ID = env("MSAL_TENANT_ID", default="")          # tenant GUID or 'organizations'
 
-# New callback URL you asked for:
 MSAL_REDIRECT_URI = env(
     "MSAL_REDIRECT_URI",
     default="https://lalibrary-hjchh0d3ckdte9hz.northeurope-01.azurewebsites.net/callback/",
