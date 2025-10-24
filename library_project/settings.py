@@ -2,100 +2,166 @@ from pathlib import Path
 import environ
 import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# --------------------------------------------------------------------------------------
+# Paths & environment
+# --------------------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file
-env = environ.Env()
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+env = environ.Env(
+    DEBUG=(bool, True),
+)
+# Load .env next to manage.py (do not commit this file)
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
-# Quick-start development settings - unsuitable for production
-SECRET_KEY = 'django-insecure--e^_pn@!-6ds=vyn*k1mf8mw7%tnxmi7fg+cf2f&yo3zkz3ese'
-DEBUG = True
-ALLOWED_HOSTS = []
+# --------------------------------------------------------------------------------------
+# Security
+# --------------------------------------------------------------------------------------
+SECRET_KEY = env("SECRET_KEY", default="unsafe-dev-key")
+DEBUG = env.bool("DEBUG", default=True)
 
-# Application definition
+ALLOWED_HOSTS = env.list(
+    "ALLOWED_HOSTS",
+    default=[
+        "lalibrary-hjchh0d3ckdte9hz.northeurope-01.azurewebsites.net",
+        "localhost",
+        "127.0.0.1",
+    ],
+)
+
+# For Azure (HTTPS) — trust your public domain for CSRF
+CSRF_TRUSTED_ORIGINS = [
+    "https://lalibrary-hjchh0d3ckdte9hz.northeurope-01.azurewebsites.net",
+]
+
+# --------------------------------------------------------------------------------------
+# Apps
+# --------------------------------------------------------------------------------------
 INSTALLED_APPS = [
-    'jazzmin',  # Jazzmin admin interface
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "jazzmin",  # optional admin skin
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
 
-    'books',  # Your app
+    "books",
 ]
 
+# --------------------------------------------------------------------------------------
+# Middleware
+# --------------------------------------------------------------------------------------
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'library_project.urls'
+# --------------------------------------------------------------------------------------
+# URLs / WSGI
+# --------------------------------------------------------------------------------------
+ROOT_URLCONF = "library_project.urls"
+WSGI_APPLICATION = "library_project.wsgi.application"
 
+# --------------------------------------------------------------------------------------
+# Templates
+# --------------------------------------------------------------------------------------
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # You can add custom template dir if needed
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],  # add template dirs here if needed
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'library_project.wsgi.application'
-
-# Database - use default SQLite for simplicity
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# --------------------------------------------------------------------------------------
+# Database (Azure PostgreSQL recommended; SQLite for local dev)
+# --------------------------------------------------------------------------------------
+# Switch to Postgres by setting DB_* env vars; otherwise falls back to SQLite
+if env("DB_HOST", default=""):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env("DB_NAME", default="postgres"),
+            "USER": env("DB_USER", default=""),
+            "PASSWORD": env("DB_PASSWORD", default=""),
+            "HOST": env("DB_HOST"),
+            "PORT": env("DB_PORT", default="5432"),
+            "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=60),
+            "OPTIONS": {"sslmode": "require"},
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
+# --------------------------------------------------------------------------------------
 # Password validation
+# --------------------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+# --------------------------------------------------------------------------------------
+# I18N / TZ
+# --------------------------------------------------------------------------------------
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Europe/Vilnius"
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # for production collectstatic
+# --------------------------------------------------------------------------------------
+# Static & Media
+# --------------------------------------------------------------------------------------
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# Media files for QR codes
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# MSAL environment variables loaded from .env
-MSAL_CLIENT_SECRET = env('MSAL_CLIENT_SECRET')
-MSAL_TENANT_ID = env('MSAL_TENANT_ID')
-MSAL_REDIRECT_URI = env('MSAL_REDIRECT_URI')
+# --------------------------------------------------------------------------------------
+# MSAL / Entra ID
+# --------------------------------------------------------------------------------------
+# You provided this client ID:
+MSAL_CLIENT_ID = env("MSAL_CLIENT_ID", default="fb026e5b-995c-4b80-ba78-d0d02cba7366")
+MSAL_CLIENT_SECRET = env("MSAL_CLIENT_SECRET", default="")  # keep in Azure App Settings
+MSAL_TENANT_ID = env("MSAL_TENANT_ID", default="")         # your tenant GUID
 
-# Login config
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/login/'
+# New callback URL you asked for:
+MSAL_REDIRECT_URI = env(
+    "MSAL_REDIRECT_URI",
+    default="https://lalibrary-hjchh0d3ckdte9hz.northeurope-01.azurewebsites.net/callback/",
+)
 
+# Public site base (used for QR code URLs)
+SITE_BASE_URL = env(
+    "SITE_BASE_URL",
+    default="https://lalibrary-hjchh0d3ckdte9hz.northeurope-01.azurewebsites.net",
+)
+
+# --------------------------------------------------------------------------------------
+# Auth flow redirects
+# --------------------------------------------------------------------------------------
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/login/"

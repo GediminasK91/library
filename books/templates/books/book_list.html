@@ -47,12 +47,27 @@
             align-items: center;
             margin-top: 0.5rem;
         }
+        .owner-label {
+            font-size: 0.9em;
+            color: #666;
+        }
     </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded-bottom mb-4">
     <div class="container">
         <span class="navbar-brand">Company Library</span>
+
+        <div class="ms-auto">
+            {% if request.user.is_authenticated %}
+                <span class="text-white me-3">
+                    {{ request.user.get_full_name|default:request.user.username }}
+                </span>
+                <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">Logout</a>
+            {% else %}
+                <a class="btn btn-outline-light btn-sm" href="{% url 'login' %}">Login</a>
+            {% endif %}
+        </div>
     </div>
 </nav>
 
@@ -61,14 +76,25 @@
     <form method="post" class="mb-4 p-3 border rounded bg-light">
         {% csrf_token %}
         <div class="row g-2 align-items-center">
-            <div class="col-auto">
+            <div class="col-12 col-md-4">
                 <input type="text" name="title" class="form-control" placeholder="Book title" required />
             </div>
-            <div class="col-auto">
+            <div class="col-12 col-md-3">
                 <input type="text" name="author" class="form-control" placeholder="Author" required />
             </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary">Add Book</button>
+            <div class="col-12 col-md-3">
+                <select name="owner_id" class="form-select">
+                    <option value="">Owner (optional)</option>
+                    {% for u in users %}
+                        <option value="{{ u.id }}">
+                            {% if u.get_full_name %}{{ u.get_full_name }}{% else %}{{ u.username }}{% endif %}
+                            {% if u.email %} ({{ u.email }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Add Book</button>
             </div>
         </div>
     </form>
@@ -77,6 +103,7 @@
         {% for book in books %}
         <div class="col-12 col-sm-6 col-md-4">
             <div class="card book-card p-3">
+
                 <a href="{% url 'take_book_page' book.id %}">
                     {% if book.qr_code %}
                         <img src="{{ book.qr_code.url }}" alt="QR for {{ book.title }}" class="qr-code-img mb-3" />
@@ -84,14 +111,27 @@
                         <div class="no-qr">No QR</div>
                     {% endif %}
                 </a>
+
                 {% if book.qr_code %}
                 <div class="btn-print-group">
                     <a href="{{ book.qr_code.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">Print QR Image</a>
                     <a href="{% url 'print_qr' book.id %}" target="_blank" class="btn btn-outline-secondary btn-sm">Print Pretty QR</a>
                 </div>
                 {% endif %}
+
                 <h5 class="text-center mt-3">{{ book.title }}</h5>
                 <div class="text-center mb-2 text-muted" style="font-size:0.96em;">by {{ book.author }}</div>
+
+                {% if book.owner %}
+                    <div class="text-center owner-label mb-2">
+                        <strong>Owner:</strong>
+                        {{ book.owner.get_full_name|default:book.owner.username }}
+                        {% if book.owner.email %} ({{ book.owner.email }}){% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-center owner-label mb-2"><em>No owner assigned</em></div>
+                {% endif %}
+
                 {% if book.id in loaned_books %}
                     {% with loan=loan_info|dict_get:book.id %}
                         <div class="text-center mb-2 book-status taken">
@@ -105,10 +145,11 @@
                 {% else %}
                     <div class="text-center book-status available">Available</div>
                 {% endif %}
+
             </div>
         </div>
         {% empty %}
-        <p>No books found.</p>
+            <p>No books found.</p>
         {% endfor %}
     </div>
 </div>
