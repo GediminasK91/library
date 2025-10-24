@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 from django.urls import reverse
-from django.core.files.base import ContentFile
 from io import BytesIO
 import qrcode
 
@@ -16,7 +15,7 @@ class Book(models.Model):
     title = models.CharField(max_length=200)
     author = models.CharField(max_length=200)
 
-    # ✅ Owner is now plain text, not a ForeignKey
+    # ✅ Owner is plain text
     owner = models.CharField(
         max_length=200,
         blank=True,
@@ -24,25 +23,22 @@ class Book(models.Model):
         help_text="Name of the person or department who owns this book",
     )
 
-    qr_code = models.ImageField(upload_to="qr_codes", blank=True)
+    # ✅ QR code stored as binary data inside the DB instead of file
+    qr_image = models.BinaryField(blank=True, null=True, editable=False)
 
     def save(self, *args, **kwargs):
         """Generate QR code only when a new Book is created."""
         creating = self.pk is None
-        super().save(*args, **kwargs)  # Save once to get an ID
+        super().save(*args, **kwargs)  # Save once to get ID
 
-        if creating and not self.qr_code:
+        if creating and not self.qr_image:
             base_url = getattr(settings, "SITE_BASE_URL", "http://localhost:8000")
             qr_url = f"{base_url}{reverse('take_book_page', args=[self.id])}"
             qr = qrcode.make(qr_url)
             buf = BytesIO()
-            qr.save(buf)
-            self.qr_code.save(
-                f"qr_code_{self.id}.png",
-                ContentFile(buf.getvalue()),
-                save=False,
-            )
-            super().save(update_fields=["qr_code"])
+            qr.save(buf, format="PNG")
+            self.qr_image = buf.getvalue()
+            super().save(update_fields=["qr_image"])
 
     def __str__(self):
         return f"{self.title} by {self.author}"

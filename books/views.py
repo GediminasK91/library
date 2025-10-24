@@ -48,6 +48,21 @@ def get_sign_in_flow(next_url="/"):
 
 
 # ---------------------------------------------------------------------
+# QR Code serving (from DB)
+# ---------------------------------------------------------------------
+
+def book_qr_from_db(request, book_id):
+    """
+    Serve the QR image stored in the database directly as PNG.
+    Works even after Azure restarts (no file system dependency).
+    """
+    book = get_object_or_404(Book, id=book_id)
+    if not book.qr_image:
+        return HttpResponse("No QR stored for this book.", status=404)
+    return HttpResponse(book.qr_image, content_type="image/png")
+
+
+# ---------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------
 

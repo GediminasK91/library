@@ -27,19 +27,6 @@
         .book-status { font-weight: bold; font-size: 0.9rem; }
         .taken { color: #c85454; }
         .available { color: #39a964; }
-        .no-qr {
-            background-color: #adb5bd;
-            color: #fff;
-            width: 120px;
-            height: 120px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            margin: 0 auto 1rem auto;
-            font-size: 1.1em;
-            letter-spacing: 2px;
-        }
         .btn-print-group {
             display: flex;
             flex-direction: column;
@@ -47,17 +34,13 @@
             align-items: center;
             margin-top: 0.5rem;
         }
-        .owner-label {
-            font-size: 0.9em;
-            color: #666;
-        }
+        .owner-label { font-size: 0.9em; color: #666; }
     </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded-bottom mb-4">
     <div class="container">
         <span class="navbar-brand">Company Library</span>
-
         <div class="ms-auto">
             {% if request.user.is_authenticated %}
                 <span class="text-white me-3">
@@ -97,19 +80,23 @@
             <div class="card book-card p-3">
 
                 <a href="{% url 'take_book_page' book.id %}">
-                    {% if book.qr_code %}
-                        <img src="{{ book.qr_code.url }}" alt="QR for {{ book.title }}" class="qr-code-img mb-3" />
+                    {% if book.qr_image %}
+                        <img src="{% url 'book_qr_from_db' book.id %}" alt="QR for {{ book.title }}" class="qr-code-img mb-3" />
                     {% else %}
-                        <div class="no-qr">No QR</div>
+                        <!-- In case existing rows predate QR generation -->
+                        <div class="text-center text-muted mb-3">No QR yet</div>
                     {% endif %}
                 </a>
 
-                {% if book.qr_code %}
                 <div class="btn-print-group">
-                    <a href="{{ book.qr_code.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">Print QR Image</a>
-                    <a href="{% url 'print_qr' book.id %}" target="_blank" class="btn btn-outline-secondary btn-sm">Print Pretty QR</a>
+                    <a href="{% url 'book_qr_from_db' book.id %}" target="_blank" class="btn btn-outline-secondary btn-sm"
+                       {% if not book.qr_image %}aria-disabled="true" tabindex="-1" onclick="return false"{% endif %}>
+                       Open QR PNG
+                    </a>
+                    <a href="{% url 'print_qr' book.id %}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                       Print Pretty QR
+                    </a>
                 </div>
-                {% endif %}
 
                 <h5 class="text-center mt-3">{{ book.title }}</h5>
                 <div class="text-center mb-2 text-muted" style="font-size:0.96em;">by {{ book.author }}</div>
