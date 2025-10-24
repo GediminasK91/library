@@ -7,22 +7,30 @@ import qrcode
 
 
 class Book(models.Model):
+    """
+    Represents a book in the company library.
+    Each book can optionally have an 'owner' (a person or department name)
+    and a generated QR code that links to its take page.
+    """
+
     title = models.CharField(max_length=200)
     author = models.CharField(max_length=200)
 
-    # Owner as plain text (type name + surname)
+    # ✅ Owner is now plain text, not a ForeignKey
     owner = models.CharField(
         max_length=200,
         blank=True,
         null=True,
-        help_text="Name of the person/department who owns this book",
+        help_text="Name of the person or department who owns this book",
     )
 
     qr_code = models.ImageField(upload_to="qr_codes", blank=True)
 
     def save(self, *args, **kwargs):
+        """Generate QR code only when a new Book is created."""
         creating = self.pk is None
-        super().save(*args, **kwargs)  # Save once to get ID
+        super().save(*args, **kwargs)  # Save once to get an ID
+
         if creating and not self.qr_code:
             base_url = getattr(settings, "SITE_BASE_URL", "http://localhost:8000")
             qr_url = f"{base_url}{reverse('take_book_page', args=[self.id])}"
@@ -37,10 +45,15 @@ class Book(models.Model):
             super().save(update_fields=["qr_code"])
 
     def __str__(self):
-        return self.title
+        return f"{self.title} by {self.author}"
 
 
 class BookLoan(models.Model):
+    """
+    Represents an active or completed loan of a book.
+    A book can only have one active (not returned) loan at a time.
+    """
+
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     user_email = models.EmailField()
     taken_at = models.DateTimeField(auto_now_add=True)
@@ -52,7 +65,7 @@ class BookLoan(models.Model):
                 fields=["book"],
                 condition=models.Q(returned_at__isnull=True),
                 name="unique_active_loan_per_book",
-            )
+            ),
         ]
         indexes = [
             models.Index(fields=["book"]),
