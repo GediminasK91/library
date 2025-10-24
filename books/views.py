@@ -32,17 +32,19 @@ def build_msal_app(cache=None):
     )
 
 
-def get_sign_in_flow():
+def get_sign_in_flow(next_url="/"):
     """
     Starts sign-in flow with PKCE.
-    IMPORTANT: We must reuse this same 'flow' object on callback.
+    Keeps the target 'next_url' in session so we can redirect after login.
     """
     app = build_msal_app()
-    return app.initiate_auth_code_flow(
+    flow = app.initiate_auth_code_flow(
         scopes=SCOPES,
         redirect_uri=settings.MSAL_REDIRECT_URI,  # must exactly match Azure config
         prompt="select_account",
     )
+    flow["next_url"] = next_url
+    return flow
 
 
 # ---------------------------------------------------------------------
@@ -58,10 +60,11 @@ def print_qr(request, book_id):
 def login_view(request):
     """
     Redirect user to Microsoft login page.
-    Saves the MSAL 'flow' in session so PKCE code_verifier can be used at callback.
+    Saves the MSAL 'flow' in session and the 'next' target page.
     """
-    flow = get_sign_in_flow()
-    request.session["auth_flow"] = flow  # keep this for callback
+    next_url = request.GET.get("next", "/")
+    flow = get_sign_in_flow(next_url)
+    request.session["auth_flow"] = flow
     return redirect(flow["auth_uri"])
 
 
@@ -69,8 +72,8 @@ def auth_callback(request):
     """
     Handle Microsoft OAuth2 redirect callback.
 
-    MUST use acquire_token_by_auth_code_flow(flow, request.GET) with the SAME 'flow'
-    saved in session during login_view(), otherwise PKCE will fail with AADSTS50148.
+    Uses the same 'flow' object stored in session, validates the PKCE,
+    and redirects to the correct 'next' URL after successful login.
     """
     flow = request.session.get("auth_flow")
     if not flow:
@@ -78,13 +81,10 @@ def auth_callback(request):
 
     app = build_msal_app()
     try:
-        # This call validates state, exchanges code, and uses the PKCE verifier inside 'flow'
         result = app.acquire_token_by_auth_code_flow(flow, request.GET)
     except ValueError as e:
-        # MSAL raises ValueError if state mismatch or other validation error
         return HttpResponse(f"Authentication error: {e}", status=400)
     finally:
-        # Remove the flow so it can't be replayed
         request.session.pop("auth_flow", None)
 
     if "id_token_claims" in result:
@@ -103,23 +103,25 @@ def auth_callback(request):
             },
         )
         login(request, user)
-        return redirect("book_list")
 
-    # If token acquisition failed, MSAL returns an error dict instead of id_token_claims
+        # ✅ Redirect back to the page before login (e.g. scanned QR)
+        next_url = flow.get("next_url", "/")
+        return redirect(next_url)
+
     error_desc = result.get("error_description") or result.get("error") or "Authentication failed"
     return HttpResponse(error_desc, status=401)
 
 
-@login_required
+@login_required(login_url="/login/")
 def book_list(request):
     """
     Main page: list books, show loan info, allow adding new books.
-    Now supports text-based owner field (name + surname).
+    Supports text-based owner field (name + surname).
     """
     if request.method == "POST":
         title = request.POST.get("title")
         author = request.POST.get("author")
-        owner_name = request.POST.get("owner")  # now text
+        owner_name = request.POST.get("owner")
 
         if title and author:
             Book.objects.create(title=title, author=author, owner=owner_name)
@@ -148,14 +150,15 @@ def book_list(request):
     )
 
 
+@login_required(login_url="/login/")
 def take_book_page(request, book_id):
-    """Show details for taking a specific book."""
+    """Show details for taking a specific book (QR target)."""
     book = get_object_or_404(Book, id=book_id)
     active_loan = BookLoan.objects.filter(book=book, returned_at__isnull=True).first()
     return render(request, "books/take_book.html", {"book": book, "active_loan": active_loan})
 
 
-@login_required
+@login_required(login_url="/login/")
 @require_POST
 def take_book_action(request, book_id):
     """Reserve a book for the current logged-in user."""
@@ -180,7 +183,7 @@ def take_book_action(request, book_id):
     )
 
 
-@login_required
+@login_required(login_url="/login/")
 @require_POST
 def return_book(request, book_id):
     """Mark a book as returned."""
