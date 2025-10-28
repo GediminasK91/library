@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 from django.contrib.auth import views as auth_views
 from . import views
 
@@ -9,14 +9,18 @@ urlpatterns = [
     path("take/<int:book_id>/reserve/", views.take_book_action, name="take_book_action"),
     path("return/<int:book_id>/", views.return_book, name="return_book"),
 
-    # Authentication
+    # Auth
     path("login/", views.login_view, name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("callback/", views.auth_callback, name="auth_callback"),
 
-    # ✅ QR code route — serves QR stored in DB
+    # ✅ Callback (multiple patterns accepted)
+    path("callback/", views.auth_callback, name="auth_callback"),                 # /callback/
+    re_path(r"^callback/?$", views.auth_callback),                                # /callback
+    re_path(r"^auth/callback/?$", views.auth_callback),                           # /auth/callback and /auth/callback/
+
+    # QR from DB
     path("qr/<int:book_id>.png", views.book_qr_from_db, name="book_qr_from_db"),
 
-    # Printable QR page
+    # Print page
     path("print_qr/<int:book_id>/", views.print_qr, name="print_qr"),
 ]
